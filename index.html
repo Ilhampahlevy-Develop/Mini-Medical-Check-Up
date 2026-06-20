@@ -465,7 +465,7 @@
     <button class="btn-primary" onclick="hitungSemua()"><i class="ti ti-sparkles" style="margin-right:6px;vertical-align:-2px;" aria-hidden="true"></i>Lihat hasil screening</button>
     <button class="btn-secondary" onclick="resetForm()">Kosongkan form</button>
   </div>
-  <p style="font-size:11.5px;color:var(--ink-soft);margin:-18px 0 28px;">Data nama, usia, dan hasil tes Anda akan otomatis tercatat setelah formulir diisi lengkap, untuk keperluan pendampingan dari tim HDI.</p>
+  <p style="font-size:11.5px;color:var(--ink-soft);margin:-18px 0 28px;">Dengan menekan "Lihat hasil screening", data nama, usia, dan hasil tes Anda akan tercatat untuk keperluan pendampingan dari tim HDI.</p>
 
   </div><!-- /surface -->
 
@@ -800,6 +800,8 @@ function hitungSemua(){
 
   document.getElementById('results').style.display = 'block';
   document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+
+  sendToSpreadsheet(lastResult);
 }
 
 function downloadAsJpg(){
@@ -851,50 +853,6 @@ function openWhatsApp(){
   const message = encodeURIComponent(lines.join('\n'));
   const url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + message;
   window.open(url, '_blank');
-}
-
-let autoSubmitTimer = null;
-let hasAutoSubmitted = false;
-
-function buildAutoSubmitPayload(){
-  const nama = document.getElementById('namaUser').value.trim();
-  const usia = val('usiaUser');
-  const gdsType = document.querySelector('input[name="gdsType"]:checked').value;
-  const gulaDarah = val('gulaDarahValue');
-  const cholTotal = val('chol-total');
-
-  if(nama === '' || usia === null) return null;
-  if(gulaDarah === null && cholTotal === null) return null;
-
-  let gula = null;
-  if(gulaDarah !== null){
-    const info = GDS_TYPE_INFO[gdsType];
-    const r = info.classify(gulaDarah);
-    gula = { title: info.cardTitle, value: gulaDarah, cat: r.cat };
-  }
-  let chol = null;
-  if(cholTotal !== null){
-    const r = classifyChol(cholTotal);
-    chol = { value: cholTotal, cat: r.cat };
-  }
-
-  return { nama, usia, gula, chol };
-}
-
-function scheduleAutoSubmit(){
-  // Sudah pernah terkirim dalam sesi pengisian ini — jangan kirim lagi
-  // sampai form di-reset (mencegah baris duplikat tiap field ditambah).
-  if(hasAutoSubmitted) return;
-
-  if(autoSubmitTimer) clearTimeout(autoSubmitTimer);
-  autoSubmitTimer = setTimeout(() => {
-    if(hasAutoSubmitted) return;
-    const data = buildAutoSubmitPayload();
-    if(!data) return;
-
-    sendToSpreadsheet(data);
-    hasAutoSubmitted = true;
-  }, 4000); // tunggu 4 detik diam, beri waktu user mengisi gula darah & kolesterol sekaligus
 }
 
 function showSyncStatus(message, isError){
@@ -954,14 +912,6 @@ function sendToSpreadsheet(data){
   });
 }
 
-['namaUser','usiaUser','gulaDarahValue','chol-total'].forEach(id => {
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('input', scheduleAutoSubmit);
-});
-document.querySelectorAll('input[name="gdsType"]').forEach(el => {
-  el.addEventListener('change', scheduleAutoSubmit);
-});
-
 function resetForm(){
   document.getElementById('namaUser').value = '';
   document.getElementById('usiaUser').value = '';
@@ -972,8 +922,6 @@ function resetForm(){
   document.getElementById('productCard').style.display = 'none';
   document.getElementById('results').style.display = 'none';
   lastResult = { nama: '', usia: null, gula: null, chol: null };
-  hasAutoSubmitted = false;
-  if(autoSubmitTimer) clearTimeout(autoSubmitTimer);
 }
 </script>
 </body>
