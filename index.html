@@ -404,7 +404,7 @@
 
   <!-- SECTION 0: DATA DIRI -->
   <div class="section-title"><span class="ico red"><i class="ti ti-user" aria-hidden="true"></i></span> Data diri</div>
-  <p class="section-sub">Usia membantu menyesuaikan konteks pembacaan hasil Anda.</p>
+  <p class="section-sub">Usia membantu menyesuaikan konteks pembacaan hasil Anda, nomor WhatsApp untuk pendampingan lebih lanjut.</p>
 
   <div class="card">
     <div class="field-row two">
@@ -415,6 +415,12 @@
       <div class="field">
         <label for="usiaUser">Usia <span class="hint">tahun</span></label>
         <input type="number" id="usiaUser" placeholder="cth. 35" min="1" max="120">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="waUser">Nomor WhatsApp <span class="hint">untuk follow-up perkembangan kesehatan Anda</span></label>
+        <input type="tel" id="waUser" placeholder="cth. 0812-3456-7890" inputmode="numeric">
       </div>
     </div>
   </div>
@@ -532,7 +538,7 @@ const WHATSAPP_NUMBER = '6282131597840';
 // Contoh: 'https://script.google.com/macros/s/AKfycbX.../exec'
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNTK_UPVyzWPOQdWS9xU7apjFD3ugirPBwU_xZsK36OiDl-X2fFZFofjVXg5mrjs27/exec';
 
-let lastResult = { nama: '', usia: null, gula: null, chol: null };
+let lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null };
 
 const HDI_PRODUCTS = {
   gula: [
@@ -693,6 +699,7 @@ function onGdsTypeChange(){
 function hitungSemua(){
   const nama = document.getElementById('namaUser').value.trim();
   const usia = val('usiaUser');
+  const waRaw = document.getElementById('waUser').value.trim();
   const gdsType = document.querySelector('input[name="gdsType"]:checked').value;
   const gulaDarah = val('gulaDarahValue');
   const cholTotal = val('chol-total');
@@ -706,6 +713,24 @@ function hitungSemua(){
     alert('Usia wajib diisi terlebih dahulu.');
     document.getElementById('usiaUser').focus();
     return;
+  }
+  if(waRaw === ''){
+    alert('Nomor WhatsApp wajib diisi terlebih dahulu.');
+    document.getElementById('waUser').focus();
+    return;
+  }
+  const waDigits = waRaw.replace(/[^0-9]/g, '');
+  if(waDigits.length < 9 || waDigits.length > 15){
+    alert('Nomor WhatsApp belum valid. Mohon periksa kembali (contoh: 0812-3456-7890).');
+    document.getElementById('waUser').focus();
+    return;
+  }
+  // Normalisasi ke format internasional 62xxxxxxxxxx
+  let waFormatted = waDigits;
+  if(waFormatted.startsWith('0')){
+    waFormatted = '62' + waFormatted.slice(1);
+  } else if(!waFormatted.startsWith('62')){
+    waFormatted = '62' + waFormatted;
   }
   if(gulaDarah===null && cholTotal===null){
     alert('Isi setidaknya satu angka hasil tes terlebih dahulu.');
@@ -788,6 +813,7 @@ function hitungSemua(){
   document.getElementById('captureName').textContent = nama + ' · ' + usia + ' tahun';
   lastResult.nama = nama;
   lastResult.usia = usia;
+  lastResult.wa = waFormatted;
 
   if(usia >= 40 && worstLevel === 'ok'){
     bannerHtml = bannerHtml.replace('</p></div>', '</p><p style="margin-top:8px;font-size:13px;">Di usia 40 tahun ke atas, risiko gula darah dan kolesterol naik secara alami — pemeriksaan rutin setiap 6-12 bulan tetap dianjurkan meski hasil saat ini normal.</p></div>');
@@ -883,6 +909,7 @@ function sendToSpreadsheet(data){
     timestamp: new Date().toISOString(),
     nama: data.nama,
     usia: data.usia,
+    whatsapp: data.wa || '',
     gulaJenis: data.gula ? data.gula.title : '',
     gulaNilai: data.gula ? data.gula.value : '',
     gulaKategori: data.gula ? data.gula.cat : '',
@@ -915,13 +942,14 @@ function sendToSpreadsheet(data){
 function resetForm(){
   document.getElementById('namaUser').value = '';
   document.getElementById('usiaUser').value = '';
+  document.getElementById('waUser').value = '';
   document.getElementById('gulaDarahValue').value = '';
   document.getElementById('chol-total').value = '';
   document.querySelector('input[name="gdsType"][value="gdp"]').checked = true;
   onGdsTypeChange();
   document.getElementById('productCard').style.display = 'none';
   document.getElementById('results').style.display = 'none';
-  lastResult = { nama: '', usia: null, gula: null, chol: null };
+  lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null };
 }
 </script>
 </body>
