@@ -211,6 +211,12 @@
   .btn-primary:hover{box-shadow:0 12px 26px -8px rgba(255,53,63,0.6);}
   .btn-secondary{background:var(--beeswax);color:var(--green-deep);}
   .btn-secondary:hover{background:#EAD5C0;}
+  .btn-whatsapp{
+    background:linear-gradient(135deg, #25D366, #1FAF54);
+    color:#fff;
+    box-shadow:0 10px 22px -10px rgba(37,211,102,0.55);
+  }
+  .btn-whatsapp:hover{box-shadow:0 12px 26px -8px rgba(37,211,102,0.6);}
 
   /* ===== SEGMENTED CONTROL ===== */
   .seg{display:flex;flex-wrap:wrap;gap:8px;}
@@ -482,6 +488,9 @@
       <button class="btn-primary" id="downloadBtn" onclick="downloadAsJpg()">
         <i class="ti ti-download" style="font-size:16px;vertical-align:-2px;margin-right:6px;" aria-hidden="true"></i>Unduh hasil (.jpg)
       </button>
+      <button class="btn-whatsapp" id="waBtn" onclick="openWhatsApp()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-4px;margin-right:7px;" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.74.46 3.43 1.32 4.93L2.05 22l5.3-1.39c1.45.79 3.08 1.2 4.73 1.2h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2zm0 18.13h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.14.82.84-3.06-.2-.32a8.18 8.18 0 01-1.26-4.33c0-4.52 3.68-8.2 8.2-8.2 2.19 0 4.25.85 5.8 2.41a8.14 8.14 0 012.4 5.8c0 4.52-3.68 8.2-8.13 8.2zm4.5-6.14c-.25-.12-1.47-.72-1.69-.81-.23-.08-.4-.12-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.99-1.22-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.43-.06-.12-.56-1.36-.77-1.85-.2-.49-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.16 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.68 4.25 3.75.59.26 1.06.41 1.42.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.14-1.18-.06-.1-.23-.16-.48-.28z"/></svg>Konsultasi Lebih Lanjut
+      </button>
     </div>
     </div><!-- /surface -->
   </div>
@@ -494,6 +503,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+const WHATSAPP_NUMBER = '6282131597840';
+
+let lastResult = { nama: '', usia: null, gula: null, chol: null };
+
 const HDI_PRODUCTS = {
   gula: [
     {
@@ -681,10 +694,16 @@ function hitungSemua(){
     const info = GDS_TYPE_INFO[gdsType];
     const r = info.classify(gulaDarah); track(r.level);
     cards += resultCard(info.cardTitle, 'mg/dL', gulaDarah, r, info.low, info.mid, info.high);
+    lastResult.gula = { title: info.cardTitle, value: gulaDarah, cat: r.cat };
+  } else {
+    lastResult.gula = null;
   }
   if(cholTotal!==null){
     const r = classifyChol(cholTotal); track(r.level);
     cards += resultCard('Kolesterol total', 'mg/dL', cholTotal, r, '<200 Optimal', '200-239 Batas atas', '≥240 Tinggi');
+    lastResult.chol = { value: cholTotal, cat: r.cat };
+  } else {
+    lastResult.chol = null;
   }
 
   document.getElementById('resultCards').innerHTML = cards;
@@ -740,6 +759,8 @@ function hitungSemua(){
   document.getElementById('productCard').style.display = productItems.length ? 'block' : 'none';
 
   document.getElementById('captureName').textContent = nama + ' · ' + usia + ' tahun';
+  lastResult.nama = nama;
+  lastResult.usia = usia;
 
   if(usia >= 40 && worstLevel === 'ok'){
     bannerHtml = bannerHtml.replace('</p></div>', '</p><p style="margin-top:8px;font-size:13px;">Di usia 40 tahun ke atas, risiko gula darah dan kolesterol naik secara alami — pemeriksaan rutin setiap 6-12 bulan tetap dianjurkan meski hasil saat ini normal.</p></div>');
@@ -782,6 +803,29 @@ function downloadAsJpg(){
   });
 }
 
+function openWhatsApp(){
+  if(!lastResult.nama){
+    alert('Lengkapi dan hitung hasil screening terlebih dahulu.');
+    return;
+  }
+
+  let lines = [];
+  lines.push('Halo HDI, saya ' + lastResult.nama + ' (' + lastResult.usia + ' tahun).');
+  lines.push('Saya baru saja melakukan screening mandiri dengan hasil:');
+  if(lastResult.gula){
+    lines.push('- ' + lastResult.gula.title + ': ' + lastResult.gula.value + ' mg/dL (' + lastResult.gula.cat + ')');
+  }
+  if(lastResult.chol){
+    lines.push('- Kolesterol total: ' + lastResult.chol.value + ' mg/dL (' + lastResult.chol.cat + ')');
+  }
+  lines.push('');
+  lines.push('Hi, bisa saya tahu lebih lanjut tentang produk rekomendasi dari HDI untuk kondisi saya?');
+
+  const message = encodeURIComponent(lines.join('\n'));
+  const url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + message;
+  window.open(url, '_blank');
+}
+
 function resetForm(){
   document.getElementById('namaUser').value = '';
   document.getElementById('usiaUser').value = '';
@@ -791,6 +835,7 @@ function resetForm(){
   onGdsTypeChange();
   document.getElementById('productCard').style.display = 'none';
   document.getElementById('results').style.display = 'none';
+  lastResult = { nama: '', usia: null, gula: null, chol: null };
 }
 </script>
 </body>
