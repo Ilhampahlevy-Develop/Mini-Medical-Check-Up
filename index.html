@@ -854,7 +854,7 @@ function openWhatsApp(){
 }
 
 let autoSubmitTimer = null;
-let lastSentSignature = '';
+let hasAutoSubmitted = false;
 
 function buildAutoSubmitPayload(){
   const nama = document.getElementById('namaUser').value.trim();
@@ -882,25 +882,44 @@ function buildAutoSubmitPayload(){
 }
 
 function scheduleAutoSubmit(){
+  // Sudah pernah terkirim dalam sesi pengisian ini — jangan kirim lagi
+  // sampai form di-reset (mencegah baris duplikat tiap field ditambah).
+  if(hasAutoSubmitted) return;
+
   if(autoSubmitTimer) clearTimeout(autoSubmitTimer);
   autoSubmitTimer = setTimeout(() => {
+    if(hasAutoSubmitted) return;
     const data = buildAutoSubmitPayload();
     if(!data) return;
 
-    // Cegah pengiriman ganda untuk kombinasi data yang persis sama
-    const signature = JSON.stringify(data);
-    if(signature === lastSentSignature) return;
-
     sendToSpreadsheet(data);
-    lastSentSignature = signature;
-  }, 1500); // tunggu 1.5 detik setelah user berhenti mengisi
+    hasAutoSubmitted = true;
+  }, 4000); // tunggu 4 detik diam, beri waktu user mengisi gula darah & kolesterol sekaligus
+}
+
+function showSyncStatus(message, isError){
+  let el = document.getElementById('syncStatus');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'syncStatus';
+    el.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;padding:10px 16px;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;box-shadow:0 8px 20px -6px rgba(0,0,0,0.3);transition:opacity .3s;max-width:280px;';
+    document.body.appendChild(el);
+  }
+  el.style.background = isError ? '#FFE3E4' : '#E3EAE4';
+  el.style.color = isError ? '#C71E27' : '#3C4D40';
+  el.textContent = message;
+  el.style.opacity = '1';
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
 }
 
 function sendToSpreadsheet(data){
   if(!GOOGLE_SCRIPT_URL){
-    // Belum dikonfigurasi — lihat AppsScript_Form_Screening.gs untuk panduan setup.
+    showSyncStatus('⚠️ GOOGLE_SCRIPT_URL belum diisi di kode form.', true);
     return;
   }
+
+  showSyncStatus('Menyimpan data ke spreadsheet...', false);
 
   const payload = {
     timestamp: new Date().toISOString(),
@@ -915,12 +934,23 @@ function sendToSpreadsheet(data){
 
   fetch(GOOGLE_SCRIPT_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
-  }).catch(() => {
-    // Diam-diam gagal — tidak mengganggu pengalaman pengguna mengisi form.
-    console.warn('Gagal mengirim data screening ke spreadsheet.');
+  })
+  .then(res => res.text())
+  .then(text => {
+    let parsed;
+    try { parsed = JSON.parse(text); } catch(e) { parsed = null; }
+    if(parsed && parsed.status === 'success'){
+      showSyncStatus('✓ Data tersimpan ke spreadsheet.', false);
+    } else {
+      showSyncStatus('⚠️ Respons tidak terduga: ' + text.slice(0,120), true);
+      console.warn('Respons Apps Script:', text);
+    }
+  })
+  .catch(err => {
+    showSyncStatus('⚠️ Gagal terhubung ke spreadsheet. Cek koneksi/URL script.', true);
+    console.warn('Gagal mengirim data screening ke spreadsheet.', err);
   });
 }
 
@@ -942,7 +972,7 @@ function resetForm(){
   document.getElementById('productCard').style.display = 'none';
   document.getElementById('results').style.display = 'none';
   lastResult = { nama: '', usia: null, gula: null, chol: null };
-  lastSentSignature = '';
+  hasAutoSubmitted = false;
   if(autoSubmitTimer) clearTimeout(autoSubmitTimer);
 }
 </script>
