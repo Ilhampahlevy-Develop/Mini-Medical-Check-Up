@@ -353,6 +353,49 @@
     border-top:1px solid var(--line);
   }
 
+  /* ===== RATING BINTANG ===== */
+  .star-rating{display:flex;gap:6px;flex-wrap:wrap;}
+  .star-rating input[type=radio]{position:absolute;opacity:0;pointer-events:none;}
+  .star-rating label{
+    font-size:28px;
+    cursor:pointer;
+    color:#D9D9D9;
+    transition:color .12s, transform .1s;
+    line-height:1;
+    user-select:none;
+  }
+  .star-rating label:hover,
+  .star-rating label.active{color:var(--yellow);}
+  .star-rating label:hover{transform:scale(1.15);}
+  .rating-value{
+    font-size:13px;font-weight:700;
+    color:var(--ink-soft);
+    margin-left:8px;
+    align-self:center;
+  }
+  .star-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+
+  /* ===== TEXTAREA ULASAN ===== */
+  .field textarea{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:15px;
+    font-family:var(--sans);
+    color:var(--ink);
+    background:#fff;
+    resize:vertical;
+    min-height:90px;
+    transition:border-color .15s, box-shadow .15s;
+    line-height:1.5;
+  }
+  .field textarea:focus{
+    outline:none;
+    border-color:var(--red);
+    box-shadow:0 0 0 4px rgba(255,53,63,0.12);
+  }
+
   .product-item{
     display:flex;
     gap:13px;
@@ -463,6 +506,39 @@
     </div>
   </div>
 
+  <!-- SECTION 3: RATING & ULASAN -->
+  <div class="section-title"><span class="ico red"><i class="ti ti-star" aria-hidden="true"></i></span> Penilaian kegiatan</div>
+  <p class="section-sub">Bantu kami meningkatkan kualitas pelayanan dengan memberikan penilaian dan kesan Anda.</p>
+
+  <div class="card">
+    <div class="field-row">
+      <div class="field">
+        <label>Rating kegiatan ini <span class="hint">wajib pilih 1–10 bintang</span></label>
+        <div class="star-wrap" style="margin-top:4px;">
+          <div class="star-rating" id="starRating">
+            <label title="1" onclick="setRating(1)">★</label>
+            <label title="2" onclick="setRating(2)">★</label>
+            <label title="3" onclick="setRating(3)">★</label>
+            <label title="4" onclick="setRating(4)">★</label>
+            <label title="5" onclick="setRating(5)">★</label>
+            <label title="6" onclick="setRating(6)">★</label>
+            <label title="7" onclick="setRating(7)">★</label>
+            <label title="8" onclick="setRating(8)">★</label>
+            <label title="9" onclick="setRating(9)">★</label>
+            <label title="10" onclick="setRating(10)">★</label>
+          </div>
+          <span class="rating-value" id="ratingValue">Belum dipilih</span>
+        </div>
+      </div>
+    </div>
+    <div class="field-row" style="margin-bottom:0;">
+      <div class="field">
+        <label for="ulasanUser">Ulasan / kesan &amp; pesan <span class="hint">wajib diisi</span></label>
+        <textarea id="ulasanUser" placeholder="Tuliskan kesan Anda tentang kegiatan ini..."></textarea>
+      </div>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="btn-primary" onclick="hitungSemua()"><i class="ti ti-sparkles" style="margin-right:6px;vertical-align:-2px;" aria-hidden="true"></i>Lihat hasil screening</button>
     <button class="btn-secondary" onclick="resetForm()">Kosongkan form</button>
@@ -534,7 +610,17 @@ const WHATSAPP_NUMBER = '6282131597840';
 // Contoh: 'https://script.google.com/macros/s/AKfycbX.../exec'
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNTK_UPVyzWPOQdWS9xU7apjFD3ugirPBwU_xZsK36OiDl-X2fFZFofjVXg5mrjs27/exec';
 
-let lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null };
+let lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null, rating: 0, ulasan: '' };
+let currentRating = 0;
+
+function setRating(n){
+  currentRating = n;
+  const stars = document.querySelectorAll('#starRating label');
+  stars.forEach((s, i) => {
+    s.classList.toggle('active', i < n);
+  });
+  document.getElementById('ratingValue').textContent = n + ' / 10';
+}
 
 const HDI_PRODUCTS = {
   gula: [
@@ -724,6 +810,17 @@ function hitungSemua(){
     alert('Isi setidaknya satu angka hasil tes terlebih dahulu.');
     return;
   }
+  if(currentRating === 0){
+    alert('Rating wajib dipilih terlebih dahulu.');
+    document.getElementById('starRating').scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  const ulasan = document.getElementById('ulasanUser').value.trim();
+  if(ulasan === ''){
+    alert('Ulasan wajib diisi terlebih dahulu.');
+    document.getElementById('ulasanUser').focus();
+    return;
+  }
 
   let cards = '';
   let worstLevel = 'ok'; // ok < warn < danger
@@ -802,6 +899,8 @@ function hitungSemua(){
   lastResult.nama = nama;
   lastResult.usia = usia;
   lastResult.wa = waFormatted;
+  lastResult.rating = currentRating;
+  lastResult.ulasan = ulasan;
 
   if(usia >= 40 && worstLevel === 'ok'){
     bannerHtml = bannerHtml.replace('</p></div>', '</p><p style="margin-top:8px;font-size:13px;">Di usia 40 tahun ke atas, risiko gula darah dan kolesterol naik secara alami — pemeriksaan rutin setiap 6-12 bulan tetap dianjurkan meski hasil saat ini normal.</p></div>');
@@ -902,7 +1001,9 @@ function sendToSpreadsheet(data){
     gulaNilai: data.gula ? data.gula.value : '',
     gulaKategori: data.gula ? data.gula.cat : '',
     cholNilai: data.chol ? data.chol.value : '',
-    cholKategori: data.chol ? data.chol.cat : ''
+    cholKategori: data.chol ? data.chol.cat : '',
+    rating: data.rating || '',
+    ulasan: data.ulasan || ''
   };
 
   fetch(GOOGLE_SCRIPT_URL, {
@@ -933,11 +1034,15 @@ function resetForm(){
   document.getElementById('waUser').value = '';
   document.getElementById('gulaDarahValue').value = '';
   document.getElementById('chol-total').value = '';
+  document.getElementById('ulasanUser').value = '';
   document.querySelector('input[name="gdsType"][value="gds"]').checked = true;
   onGdsTypeChange();
+  currentRating = 0;
+  document.querySelectorAll('#starRating label').forEach(s => s.classList.remove('active'));
+  document.getElementById('ratingValue').textContent = 'Belum dipilih';
   document.getElementById('productCard').style.display = 'none';
   document.getElementById('results').style.display = 'none';
-  lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null };
+  lastResult = { nama: '', usia: null, wa: '', gula: null, chol: null, rating: 0, ulasan: '' };
 }
 </script>
 </body>
